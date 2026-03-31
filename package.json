@@ -9,15 +9,14 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "generate-icons": "pwa-assets-generator --preset minimal public/icon.svg",
-
-    "mobile:sync":    "npm run build && npx cap sync",
+    "mobile:sync": "npm run build && npx cap sync",
     "mobile:android": "npm run build && npx cap sync && npx cap open android",
-    "mobile:ios":     "npm run build && npx cap sync && npx cap open ios",
-
-    "desktop:dev":   "npx tauri dev",
+    "mobile:ios": "npm run build && npx cap sync && npx cap open ios",
+    "desktop:dev": "npx tauri dev",
     "desktop:build": "npx tauri build"
   },
   "dependencies": {
+    "@capacitor/android": "^8.3.0",
     "@capacitor/core": "^8.3.0",
     "@supabase/supabase-js": "^2.100.1",
     "framer-motion": "^12.34.5",
@@ -41,6 +40,7 @@
     "globals": "^16.5.0",
     "postcss": "^8.5.8",
     "tailwindcss": "^4.2.1",
+    "typescript": "^6.0.2",
     "vite": "^7.3.1"
   }
 }
