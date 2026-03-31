@@ -7,21 +7,40 @@
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "generate-icons": "pwa-assets-generator --preset minimal public/icon.svg",
+
+    "mobile:sync":    "npm run build && npx cap sync",
+    "mobile:android": "npm run build && npx cap sync && npx cap open android",
+    "mobile:ios":     "npm run build && npx cap sync && npx cap open ios",
+
+    "desktop:dev":   "npx tauri dev",
+    "desktop:build": "npx tauri build"
   },
   "dependencies": {
+    "@capacitor/core": "^8.3.0",
+    "@supabase/supabase-js": "^2.100.1",
+    "framer-motion": "^12.34.5",
+    "lucide-react": "^0.577.0",
     "react": "^19.2.0",
-    "react-dom": "^19.2.0"
+    "react-dom": "^19.2.0",
+    "vite-plugin-pwa": "^1.2.0"
   },
   "devDependencies": {
+    "@capacitor/cli": "^8.3.0",
     "@eslint/js": "^9.39.1",
+    "@tailwindcss/postcss": "^4.2.1",
     "@types/react": "^19.2.7",
     "@types/react-dom": "^19.2.3",
+    "@vite-pwa/assets-generator": "^1.0.2",
     "@vitejs/plugin-react": "^5.1.1",
+    "autoprefixer": "^10.4.27",
     "eslint": "^9.39.1",
     "eslint-plugin-react-hooks": "^7.0.1",
     "eslint-plugin-react-refresh": "^0.4.24",
     "globals": "^16.5.0",
+    "postcss": "^8.5.8",
+    "tailwindcss": "^4.2.1",
     "vite": "^7.3.1"
   }
 }
