@@ -256,8 +256,9 @@ export default function App() {
   const dragIndex    = useRef(null);
   const notifTimer   = useRef(null);
 
-  const [session, setSession]     = useState(null);
-  const [authReady, setAuthReady] = useState(!isSupabaseEnabled);
+  const [session, setSession]       = useState(null);
+  const [authReady, setAuthReady]   = useState(!isSupabaseEnabled);
+  const [cloudReady, setCloudReady] = useState(!isSupabaseEnabled);
 
   // ── Auth ─────────────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -275,17 +276,21 @@ export default function App() {
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function loadCloudData(userId) {
-    const { data: profile, error } = await supabase
-      .from("user_profiles").select("data").eq("id", userId).single();
-    if (error?.code === "PGRST116") {
-      const fresh = getDefaultState(); setData(fresh); localStorage.removeItem(STORAGE_KEY); return;
+    try {
+      const { data: profile, error } = await supabase
+        .from("user_profiles").select("data").eq("id", userId).single();
+      if (error?.code === "PGRST116") {
+        const fresh = getDefaultState(); setData(fresh); localStorage.removeItem(STORAGE_KEY); return;
+      }
+      if (error) { console.error("Cloud load error:", error); return; }
+      if (!profile?.data) return;
+      skipNextSync.current = true;
+      const loaded = parseData(profile.data);
+      setData(loaded);
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(loaded));
+    } finally {
+      setCloudReady(true);
     }
-    if (error) { console.error("Cloud load error:", error); return; }
-    if (!profile?.data) return;
-    skipNextSync.current = true;
-    const loaded = parseData(profile.data);
-    setData(loaded);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(loaded));
   }
 
   // ── Cloud sync ───────────────────────────────────────────────────────────────
@@ -324,7 +329,7 @@ export default function App() {
       await supabase.from("user_profiles").upsert({ id: session.user.id, data: fresh });
   }
 
-  const showSetup = !data.setupDone || !data.timezone;
+  const showSetup = cloudReady && (!data.setupDone || !data.timezone);
 
   // ── Daily reset + penalty + shield ──────────────────────────────────────────
   useEffect(() => {
@@ -567,7 +572,7 @@ export default function App() {
     });
   }
 
-  if (!authReady) return <LoadingScreen />;
+  if (!authReady || !cloudReady) return <LoadingScreen />;
   if (isSupabaseEnabled && !session) return <AuthPage />;
 
   const NAV_TABS = [
