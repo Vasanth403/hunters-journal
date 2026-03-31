@@ -266,11 +266,12 @@ export default function App() {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session); setAuthReady(true);
       if (session) loadCloudData(session.user.id);
+      else setCloudReady(true);
     });
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       setSession(session);
       if (event === "SIGNED_IN")  loadCloudData(session.user.id);
-      if (event === "SIGNED_OUT") { setData(getDefaultState()); localStorage.removeItem(STORAGE_KEY); }
+      if (event === "SIGNED_OUT") { setData(getDefaultState()); localStorage.removeItem(STORAGE_KEY); setCloudReady(true); }
     });
     return () => subscription.unsubscribe();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
