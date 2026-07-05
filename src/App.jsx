@@ -1470,7 +1470,7 @@ function formatStat(value) {
   if (value >= 10000)  return `${(value / 1000).toFixed(1)}k`;
   return String(value);
 }
-const STAT_VAL_SIZE = { 1: "1.25rem", 2: "1.25rem", 3: "1.1rem", 4: "0.88rem", 5: "0.74rem" };
+const STAT_VAL_SIZE = { 1: "1.25rem", 2: "1.25rem", 3: "1.05rem", 4: "0.8rem", 5: "0.68rem" };
 function StatCard({ statKey, value }) {
   const m = STAT_META[statKey] || { color: "blue", hint: statKey };
   const fillPct = Math.min(100, value === 0 ? 0 : (value / (value + 100)) * 100 + 5);
