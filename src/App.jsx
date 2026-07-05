@@ -1465,13 +1465,18 @@ const STAT_META = {
   DIS: { color: "purple", hint: "Discipline" }, VIT: { color: "green", hint: "Vitality" },
   CRE: { color: "amber", hint: "Creativity" },
 };
+function formatStat(value) {
+  if (value >= 100000) return `${Math.round(value / 1000)}k`;
+  if (value >= 10000)  return `${(value / 1000).toFixed(1)}k`;
+  return String(value);
+}
 function StatCard({ statKey, value }) {
   const m = STAT_META[statKey] || { color: "blue", hint: statKey };
   const fillPct = Math.min(100, value === 0 ? 0 : (value / (value + 100)) * 100 + 5);
   return (
     <motion.div whileHover={{ y: -3, scale: 1.04 }} transition={{ type: "spring", stiffness: 280, damping: 18 }} className={`stat-card sc-${m.color}`}>
       <span className={`stat-key sk-${m.color}`}>{statKey}</span>
-      <span className="stat-val">{value}</span>
+      <span className="stat-val" title={value}>{formatStat(value)}</span>
       <span className="stat-hint">{m.hint}</span>
       <div className="stat-track"><motion.div className={`stat-fill sf-${m.color}`} initial={{ width: 0 }} animate={{ width: `${fillPct}%` }} transition={{ duration: 0.7 }} /></div>
     </motion.div>

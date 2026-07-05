@@ -376,10 +376,12 @@ body {
 }
 .stat-val {
   font-family: "Orbitron", monospace;
-  font-size: 1.25rem;
+  font-size: clamp(0.72rem, 2.4vw, 1.25rem);
   font-weight: 900;
   color: #e2e8f0;
   line-height: 1;
+  max-width: 100%;
+  white-space: nowrap;
 }
 .stat-hint { font-size: 0.6rem; color: var(--muted); }
 .stat-track {
