@@ -1,16 +1,44 @@
-# React + Vite
+# Hunter's Journal
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+An RPG-themed daily productivity tracker — turn your real-life routine into a leveling system. Complete daily quests, earn EXP, level up, and fight bosses for keeping your streak alive.
 
-Currently, two official plugins are available:
+## Features
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+- **Daily quests** across custom categories, each worth EXP
+- **Leveling system** with a level-up overlay and streak-based EXP scaling
+- **Weekly boss** fights tied to your consistency
+- **Combat log** tracking your gains and penalties
+- **Cloud sync** so your progress follows you across devices
+- **Installable PWA** plus native Android builds via Capacitor
 
-## React Compiler
+## Tech Stack
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+- [React 19](https://react.dev/) + [Vite 7](https://vite.dev/)
+- [Tailwind CSS 4](https://tailwindcss.com/) for styling
+- [Framer Motion](https://www.framer.com/motion/) for animations
+- [Supabase](https://supabase.com/) for auth and cloud storage
+- [Capacitor](https://capacitorjs.com/) for the mobile builds
+- [vite-plugin-pwa](https://vite-pwa-org.netlify.app/) for offline/installable support
 
-## Expanding the ESLint configuration
+## Getting Started
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+```bash
+npm install
+npm run dev
+```
+
+Copy `.env.example` to `.env.local` and fill in your Supabase credentials.
+
+## Scripts
+
+| Command | Description |
+| --- | --- |
+| `npm run dev` | Start the local dev server |
+| `npm run build` | Production build |
+| `npm run preview` | Preview the production build |
+| `npm run lint` | Run ESLint |
+| `npm run mobile:android` | Build and open the Android project |
+
+## License
+
+Personal project — all rights reserved.
