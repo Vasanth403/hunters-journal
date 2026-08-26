@@ -21,7 +21,7 @@ export default function Leaderboard({ session }) {
 
   useEffect(() => { load(); }, []);
 
-  const top3Colors = ["#f59e0b", "#94a3b8", "#cd7c2f"];
+  const top3Colors = ["#e8b33c", "#b695ff", "#c9743a"];
 
   return (
     <div className="social-panel">

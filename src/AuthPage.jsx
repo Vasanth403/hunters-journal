@@ -1,6 +1,8 @@
 import React, { useState } from "react";
 import { motion } from "framer-motion";
 import { supabase } from "./lib/supabase";
+import { Brackets, GateMark } from "./art/Sigils";
+import { EmberField } from "./art/Effects";
 
 const FRIENDLY_ERRORS = {
   "Invalid login credentials":    "Incorrect email or password.",
@@ -58,6 +60,7 @@ export default function AuthPage() {
   return (
     <div className="auth-page">
       <div className="bg-layer" />
+      <EmberField count={18} />
 
       <motion.div
         initial={{ opacity: 0, y: 32 }}
@@ -65,28 +68,31 @@ export default function AuthPage() {
         transition={{ type: "spring", stiffness: 220, damping: 22 }}
         className="auth-box"
       >
+        <Brackets />
+
         {/* Brand */}
         <div className="auth-brand">
-          <motion.p
-            animate={{ opacity: [0.5, 1, 0.5] }}
-            transition={{ duration: 2.5, repeat: Infinity }}
-            className="setup-eyebrow"
+          <motion.div
+            animate={{ scale: [1, 1.07, 1], opacity: [0.75, 1, 0.75] }}
+            transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
+            style={{ display: "grid", placeItems: "center", marginBottom: "0.9rem" }}
           >
-            SYSTEM INTERFACE
-          </motion.p>
-          <h1 className="setup-title">HUNTER'S<br />JOURNAL</h1>
+            <GateMark size={44} />
+          </motion.div>
+          <p className="setup-eyebrow">System interface</p>
+          <h1 className="setup-title">Hunter's<br />Journal</h1>
           <p className="auth-subtitle">
             {mode === "signin"
-              ? "Welcome back, Hunter. Resume your journey."
-              : "A new player has been detected. Register to begin."}
+              ? "Your progress is waiting. Sign in to pick it up."
+              : "Create an account and your levels follow you to any device."}
           </p>
           <div className="setup-divider" />
         </div>
 
         {/* Tabs */}
         <div className="auth-tabs">
-          <button className={`auth-tab ${mode === "signin"  ? "auth-tab-active" : ""}`} onClick={() => switchMode("signin")}>Sign In</button>
-          <button className={`auth-tab ${mode === "signup" ? "auth-tab-active" : ""}`} onClick={() => switchMode("signup")}>Create Account</button>
+          <button className={`auth-tab ${mode === "signin"  ? "auth-tab-active" : ""}`} onClick={() => switchMode("signin")}>Sign in</button>
+          <button className={`auth-tab ${mode === "signup" ? "auth-tab-active" : ""}`} onClick={() => switchMode("signup")}>Create account</button>
         </div>
 
         {/* Feedback */}
@@ -114,7 +120,7 @@ export default function AuthPage() {
           </div>
 
           <button type="submit" className="btn-setup-start" disabled={loading}>
-            {loading ? "AUTHENTICATING…" : mode === "signin" ? "ARISE" : "AWAKEN"}
+            {loading ? "Opening the gate…" : mode === "signin" ? "Arise" : "Awaken"}
           </button>
         </form>
 

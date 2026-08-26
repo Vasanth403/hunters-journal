@@ -1,14 +1,20 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  Dumbbell, BookOpen, Shield, Zap, Palette,
   Plus, X, Check, ChevronRight, Pencil, Camera, LogOut, GripVertical, Lock,
+  Settings, Swords, Trophy, Users, Shield as ShieldIcon,
 } from "lucide-react";
 import { supabase, isSupabaseEnabled } from "./lib/supabase";
 import AuthPage from "./AuthPage";
 import Leaderboard from "./social/Leaderboard";
 import Friends from "./social/Friends";
 import Guild from "./social/Guild";
+import Monarch from "./art/Monarch";
+import BossArt from "./art/Bosses";
+import { RankSigil, CategoryGlyph, Brackets, GateMark } from "./art/Sigils";
+import {
+  SummonCircle, ShockRings, EmberField, XpBurst, GlyphRain, StreakFlame,
+} from "./art/Effects";
 
 const STORAGE_KEY = "rpg-productivity-v5";
 
@@ -20,7 +26,6 @@ export const CATEGORIES = {
   VITALITY:   { label: "Vitality",   stat: "VIT", color: "green",  desc: "Sleep, health & nutrition"    },
   CREATION:   { label: "Creation",   stat: "CRE", color: "amber",  desc: "Creative work & projects"     },
 };
-const CAT_ICONS = { COMBAT: Dumbbell, KNOWLEDGE: BookOpen, DISCIPLINE: Shield, VITALITY: Zap, CREATION: Palette };
 const CAT_ORDER = ["COMBAT", "KNOWLEDGE", "DISCIPLINE", "VITALITY", "CREATION"];
 
 // ─── Weekly Boss ──────────────────────────────────────────────────────────────
@@ -42,12 +47,12 @@ function getWeeklyBoss(weekKey) {
 
 // ─── Difficulty Tiers ─────────────────────────────────────────────────────────
 export const TIERS = {
-  E: { xp: 20,  color: "slate",  hex: "#64748b", unlockLevel: 1  },
-  D: { xp: 40,  color: "green",  hex: "#22c55e", unlockLevel: 5  },
-  C: { xp: 70,  color: "blue",   hex: "#3b82f6", unlockLevel: 12 },
-  B: { xp: 110, color: "purple", hex: "#a855f7", unlockLevel: 20 },
-  A: { xp: 160, color: "amber",  hex: "#f59e0b", unlockLevel: 30 },
-  S: { xp: 250, color: "red",    hex: "#ef4444", unlockLevel: 45 },
+  E: { xp: 20,  color: "slate",  hex: "#8b839f", unlockLevel: 1  },
+  D: { xp: 40,  color: "green",  hex: "#3fd9a0", unlockLevel: 5  },
+  C: { xp: 70,  color: "blue",   hex: "#4ca8ff", unlockLevel: 12 },
+  B: { xp: 110, color: "purple", hex: "#8b6bff", unlockLevel: 20 },
+  A: { xp: 160, color: "amber",  hex: "#e8b33c", unlockLevel: 30 },
+  S: { xp: 250, color: "red",    hex: "#ff5a47", unlockLevel: 45 },
 };
 const TIER_ORDER = ["E", "D", "C", "B", "A", "S"];
 
@@ -269,6 +274,8 @@ export default function App() {
   const [notification, setNotification] = useState(null);
   const [achToast, setAchToast]         = useState(null);
   const [activeTab, setActiveTab]       = useState("quests");
+  const [bursts, setBursts]             = useState([]);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const prevLevelRef = useRef(data.level);
   const fileInputRef = useRef(null);
   const syncTimer    = useRef(null);
@@ -537,9 +544,29 @@ export default function App() {
     e.target.value = "";
   }
 
-  function completeQuest(q) {
+  function completeQuest(q, evt) {
+    if (data.done[q.id]) return;
     const streak = calcStreak(data.dailyLog, data.shieldedDays);
     const multi  = streak >= 30 ? 2.0 : streak >= 14 ? 1.5 : streak >= 7 ? 1.25 : 1.0;
+
+    // Fire the burst where the button actually is, so the reward reads as
+    // coming from the thing you clicked.
+    if (evt?.currentTarget) {
+      const r  = evt.currentTarget.getBoundingClientRect();
+      const id = `b-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+      setBursts((b) => [
+        ...b,
+        {
+          id,
+          amount: Math.round(TIERS[q.tier || "E"].xp * multi),
+          x: r.left + r.width / 2,
+          y: r.top + r.height / 2,
+          crit: multi > 1,
+        },
+      ]);
+      setTimeout(() => setBursts((b) => b.filter((x) => x.id !== id)), 1500);
+    }
+
     setData((prev) => {
       if (prev.done[q.id]) return prev;
       const cat    = CATEGORIES[q.category];
@@ -574,8 +601,8 @@ export default function App() {
       return { ...prev, level, xp, stats, done: newDone, history, dailyLog, bonusGiven: allDone ? true : prev.bonusGiven };
     });
     playSound("complete");
-    const bonusLabel = multi >= 2.0 ? " ×2 streak bonus!" : multi >= 1.5 ? " ×1.5 streak bonus!" : multi >= 1.25 ? " ×1.25 streak bonus!" : "";
-    notify(`Quest cleared: ${q.name}${bonusLabel}`);
+    const bonusLabel = multi >= 2.0 ? " · ×2 streak" : multi >= 1.5 ? " · ×1.5 streak" : multi >= 1.25 ? " · ×1.25 streak" : "";
+    notify(`Cleared ${q.name}${bonusLabel}`);
     if (q.repeat === "once") {
       setTimeout(() => {
         setData((prev) => ({
@@ -645,15 +672,20 @@ export default function App() {
   if (isSupabaseEnabled && !session) return <AuthPage />;
 
   const NAV_TABS = [
-    { id: "quests",      label: "⚔ Quests"      },
-    { id: "hunters",     label: "🏆 Hunters"     },
-    { id: "friends",     label: "👥 Friends"     },
-    { id: "guild",       label: "⚜ Guild"        },
+    { id: "quests",  label: "Quests",  Icon: Swords     },
+    { id: "hunters", label: "Ranking", Icon: Trophy     },
+    { id: "friends", label: "Allies",  Icon: Users      },
+    { id: "guild",   label: "Guild",   Icon: ShieldIcon },
   ];
+
+  const streak     = calcStreak(data.dailyLog, data.shieldedDays);
+  const rankBadge  = getRankBadge(data.level);
+  const openQuests = data.quests.length - completedCount;
 
   return (
     <div className="app-root">
       <div className="bg-layer" />
+      <EmberField count={24} />
       <input ref={fileInputRef} type="file" accept="image/*" style={{ display: "none" }} onChange={handleAvatarFile} />
 
       <AnimatePresence>{showSetup && <SetupModal onComplete={completeSetup} />}</AnimatePresence>
@@ -661,9 +693,25 @@ export default function App() {
       <AnimatePresence>{achToast && <AchievementToast achievement={achToast} />}</AnimatePresence>
 
       <AnimatePresence>
+        {settingsOpen && (
+          <SettingsDrawer
+            data={data}
+            setData={setData}
+            todayKey={getTodayKey(data.timezone || "UTC")}
+            onWipe={wipeAllData}
+            onClose={() => setSettingsOpen(false)}
+          />
+        )}
+      </AnimatePresence>
+
+      {bursts.map((b) => (
+        <XpBurst key={b.id} amount={b.amount} x={b.x} y={b.y} crit={b.crit} />
+      ))}
+
+      <AnimatePresence>
         {notification && (
           <motion.div key={notification} initial={{ opacity: 0, y: -24, x: "-50%" }} animate={{ opacity: 1, y: 0, x: "-50%" }} exit={{ opacity: 0, y: -16, x: "-50%" }} className="sys-toast">
-            <span className="sys-toast-tag">SYSTEM</span>{notification}
+            <span className="sys-toast-tag">System</span>{notification}
           </motion.div>
         )}
       </AnimatePresence>
@@ -675,33 +723,52 @@ export default function App() {
       </AnimatePresence>
 
       <div className="page-wrap">
-        {/* Header */}
-        <motion.header initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="header-panel">
-          <div>
-            <p className="eyebrow">SYSTEM INTERFACE</p>
-            <h1 className="hero-title">HUNTER'S JOURNAL</h1>
-            <p className="header-meta">
-              <span>{new Date().toLocaleDateString("en-US", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}</span>
-              <span className="sep">·</span>
-              <span className="blue-glow">{completedCount} / {data.quests.length} Quests</span>
-              {data.timezone && <><span className="sep">·</span><span className="tz-chip">{data.timezone.replace(/_/g, " ")}</span></>}
-            </p>
+        {/* Top bar */}
+        <motion.header initial={{ opacity: 0, y: -16 }} animate={{ opacity: 1, y: 0 }} className="header-panel">
+          <div className="brand-lockup">
+            <span className="brand-mark"><GateMark size={30} /></span>
+            <span className="brand-text">
+              <span className="brand-name">Hunter's Journal</span>
+              <span className="brand-sub">
+                {new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}
+              </span>
+            </span>
           </div>
-          {isSupabaseEnabled && session && (
-            <div className="header-actions">
+
+          <p className="header-meta">
+            <span className="blue-glow">{completedCount}/{data.quests.length}</span>
+            <span>cleared today</span>
+            {data.timezone && <><span className="sep">·</span><span className="tz-chip">{data.timezone.replace(/_/g, " ")}</span></>}
+          </p>
+
+          <div className="header-actions">
+            {isSupabaseEnabled && session && (
               <div className="sync-badge" title={`Signed in as ${session.user.email}`}>
                 <span className="sync-dot" />{session.user.email}
               </div>
-              <button onClick={signOut} className="btn-ghost btn-signout"><LogOut size={15} /> Sign Out</button>
-            </div>
-          )}
+            )}
+            <button onClick={() => setSettingsOpen(true)} className="btn-ghost" title="Settings">
+              <Settings size={15} /> Settings
+            </button>
+            {isSupabaseEnabled && session && (
+              <button onClick={signOut} className="btn-ghost btn-signout" title="Sign out">
+                <LogOut size={15} /> Sign out
+              </button>
+            )}
+          </div>
         </motion.header>
 
-        {/* Nav */}
+        {/* Command rail */}
         <nav className="app-nav">
           {NAV_TABS.map((t) => (
-            <button key={t.id} className={`nav-tab ${activeTab === t.id ? "nav-tab-active" : ""}`} onClick={() => setActiveTab(t.id)}>
+            <button
+              key={t.id}
+              className={`nav-tab ${activeTab === t.id ? "nav-tab-active" : ""}`}
+              onClick={() => setActiveTab(t.id)}
+            >
+              <span className="nav-tab-glyph"><t.Icon size={14} /></span>
               {t.label}
+              {t.id === "quests" && openQuests > 0 && <span className="tab-count">{openQuests}</span>}
             </button>
           ))}
         </nav>
@@ -714,157 +781,181 @@ export default function App() {
         {/* Main quests view */}
         {activeTab === "quests" && (
           <>
-            <div className="main-grid">
-              {/* Character panel */}
-              <motion.aside initial={{ opacity: 0, x: -24 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.1 }} className="char-panel">
-                <p className="eyebrow">STATUS WINDOW</p>
+            {/* ── Hero band: the character IS the status window ──────────── */}
+            <motion.section
+              initial={{ opacity: 0, y: 18 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+              className="hero-band"
+            >
+              <Brackets />
+
+              <div
+                className="monarch-stage"
+                onClick={() => fileInputRef.current?.click()}
+                title="Set your portrait"
+              >
+                <Monarch
+                  level={data.level}
+                  rank={rankBadge}
+                  streak={streak}
+                  awakened={!!levelUpData}
+                  avatarUrl={data.avatarUrl}
+                />
+                <div className="avatar-cam"><Camera size={12} /></div>
+                <div className="monarch-plate"><small>LV</small>{data.level}</div>
+              </div>
+
+              <div className="hud">
                 <div className="char-identity">
-                  <div className="avatar-wrap" onClick={() => fileInputRef.current?.click()} title="Upload avatar">
-                    {data.avatarUrl ? <img src={data.avatarUrl} alt="avatar" className="avatar-img" /> : <span className="avatar-placeholder">☠</span>}
-                    <div className="avatar-cam"><Camera size={12} /></div>
-                    <span className="lv-badge">LV.{data.level}</span>
-                  </div>
+                  <span className="rank-emblem" title={rankBadge}>
+                    <RankSigil rank={rankBadge} size={40} />
+                  </span>
                   <div className="char-info">
                     <div className="char-name-row">
-                      <p className="char-name">{data.name}</p>
+                      <p className="char-name" onClick={renameHunter}>{data.name}</p>
                       <button className="rename-btn" onClick={renameHunter} title="Rename"><Pencil size={13} /></button>
                     </div>
                     <p className="char-rank">{getRankTitle(data.level)}</p>
-                    <span className="rank-chip">{getRankBadge(data.level)}</span>
+                    <span className="rank-chip">{rankBadge}</span>
                   </div>
                 </div>
 
                 <div className="xp-block">
                   <div className="xp-meta">
-                    <span className="xp-meta-label">EXP</span>
+                    <span className="xp-meta-label">Experience</span>
                     <span className="blue-glow">{data.xp} / {need}</span>
                     <span className="xp-pct">{progress}%</span>
                   </div>
                   <div className="xp-track">
-                    <motion.div className="xp-fill" initial={{ width: 0 }} animate={{ width: `${progress}%` }} transition={{ duration: 0.9, ease: "easeOut" }} />
+                    <motion.div
+                      className="xp-fill"
+                      initial={{ width: 0 }}
+                      animate={{ width: `${progress}%` }}
+                      transition={{ duration: 1, ease: [0.16, 1, 0.3, 1] }}
+                    />
                     <div className="xp-shine" />
                   </div>
                 </div>
 
-                {/* Streak shields */}
-                {data.streakShields > 0 && (
-                  <div className="shield-row">
-                    <span className="shield-label">STREAK SHIELDS</span>
-                    <div className="shield-icons">
-                      {[0,1,2].map((i) => (
-                        <span key={i} className={`shield-icon ${i < data.streakShields ? "shield-active" : "shield-empty"}`}>🛡️</span>
-                      ))}
-                    </div>
+                <div className="streak-block">
+                  <StreakFlame streak={streak} size={34} />
+                  <div className="streak-copy">
+                    <span className="streak-count">{streak}<span> day{streak === 1 ? "" : "s"}</span></span>
+                    <span className="streak-note">
+                      {streak === 0
+                        ? "Clear one quest to start a streak."
+                        : streak >= 30 ? "Double EXP on every quest."
+                        : streak >= 14 ? "1.5× EXP. Next tier at 30 days."
+                        : streak >= 7  ? "1.25× EXP. Next tier at 14 days."
+                        : `${7 - streak} more day${7 - streak === 1 ? "" : "s"} to reach 1.25× EXP.`}
+                    </span>
                   </div>
-                )}
+
+                  {data.streakShields > 0 && (
+                    <div className="shield-row">
+                      <span className="shield-label">Shields</span>
+                      <div className="shield-icons">
+                        {[0, 1, 2].map((i) => (
+                          <span key={i} className={`shield-icon ${i < data.streakShields ? "shield-active" : "shield-empty"}`}>
+                            <ShieldIcon size={15} fill={i < data.streakShields ? "currentColor" : "none"} />
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
 
                 <div className="stats-section">
-                  <p className="eyebrow text-center">ATTRIBUTES</p>
+                  <p className="eyebrow">Attributes</p>
                   <div className="stats-grid">
                     {Object.entries(data.stats).map(([key, val]) => <StatCard key={key} statKey={key} value={val} />)}
                   </div>
                 </div>
+              </div>
+            </motion.section>
 
-                {data.achievements?.length > 0 && (
-                  <div className="ach-section">
-                    <p className="eyebrow">ACHIEVEMENTS</p>
-                    <div className="ach-grid">
-                      {ACHIEVEMENTS.filter((a) => data.achievements.includes(a.id)).map((a) => (
-                        <div key={a.id} className="ach-badge" title={`${a.label}: ${a.desc}`}><span className="ach-icon">{a.icon}</span></div>
-                      ))}
-                    </div>
-                    <p className="ach-count">{data.achievements.length} / {ACHIEVEMENTS.length} unlocked</p>
-                  </div>
-                )}
-
-                <div className="notif-settings">
-                  <p className="eyebrow">NOTIFICATIONS</p>
-                  <div className="notif-row">
-                    <label className="notif-toggle-label">
-                      <input
-                        type="checkbox"
-                        checked={!!data.notifEnabled}
-                        onChange={(e) => {
-                          if (e.target.checked && "Notification" in window && Notification.permission !== "granted") {
-                            Notification.requestPermission().then((perm) => {
-                              if (perm === "granted") setData((p) => ({ ...p, notifEnabled: true }));
-                            });
-                          } else {
-                            setData((p) => ({ ...p, notifEnabled: e.target.checked }));
-                          }
-                        }}
-                      />
-                      Daily reminder
-                    </label>
-                    <input
-                      type="time"
-                      className="notif-time-input"
-                      value={data.notifTime || "08:00"}
-                      disabled={!data.notifEnabled}
-                      onChange={(e) => setData((p) => ({ ...p, notifTime: e.target.value }))}
-                    />
-                  </div>
-                  <p className="notif-note">Fires when quests are incomplete · requires app open</p>
-                </div>
-
-                <ObsidianExport
-                  data={data}
-                  todayKey={getTodayKey(data.timezone || "UTC")}
-                  onVaultChange={(v) => setData((p) => ({ ...p, obsidianVault: v }))}
-                />
-
-                <p className="char-quote">"I alone level up."</p>
-              </motion.aside>
+            <div className="main-grid">
 
               {/* Quest board */}
-              <motion.main initial={{ opacity: 0, x: 24 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.15 }} className="quest-main">
+              <motion.main
+                initial={{ opacity: 0, y: 16 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.12, duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+                className="quest-main"
+              >
+                <Brackets />
                 <div className="board-header">
                   <div>
-                    <p className="eyebrow">QUEST BOARD</p>
-                    <h2 className="board-title">Daily Quests</h2>
-                    <p className="board-sub">Complete quests to gain EXP and level up your stats.</p>
+                    <p className="eyebrow">Quest board</p>
+                    <h2 className="board-title">Today's quests</h2>
+                    <p className="board-sub">
+                      {openQuests === 0 && data.quests.length > 0
+                        ? "Everything is cleared. Come back tomorrow."
+                        : `${openQuests} still open. Clearing one raises the attribute it trains.`}
+                    </p>
                   </div>
                   <button className="btn-add" onClick={() => setQuestModal({ mode: "add" })}>
-                    <Plus size={16} /> Add Quest
+                    <Plus size={16} /> Add quest
                   </button>
                 </div>
 
-                <WeeklyBossCard boss={getWeeklyBoss(data.weekKey)} defeated={data.weeklyBossDefeated === data.weekKey} weeklyQuests={getWeeklyQuestCount(data.dailyLog, data.weekKey)} onDefeat={completeBoss} />
+                <WeeklyBossCard
+                  boss={getWeeklyBoss(data.weekKey)}
+                  defeated={data.weeklyBossDefeated === data.weekKey}
+                  weeklyQuests={getWeeklyQuestCount(data.dailyLog, data.weekKey)}
+                  onDefeat={completeBoss}
+                />
 
                 {data.quests.length === 0 ? (
                   <div className="empty-board">
-                    <p className="empty-title">No quests registered</p>
-                    <p className="empty-sub">Add your first quest to begin your journey.</p>
-                    <button className="btn-add" onClick={() => setQuestModal({ mode: "add" })}><Plus size={16} /> Add Quest</button>
+                    <p className="empty-title">The board is empty</p>
+                    <p className="empty-sub">
+                      Add something you want to do every day. The System turns it into EXP.
+                    </p>
+                    <button className="btn-add" onClick={() => setQuestModal({ mode: "add" })}>
+                      <Plus size={16} /> Add your first quest
+                    </button>
                   </div>
                 ) : (
-                  <div className="quest-grid">
-                    {data.quests.map((q, i) => (
-                      <QuestCard
-                        key={q.id} quest={q} done={!!data.done[q.id]}
-                        onComplete={completeQuest}
-                        onEdit={() => setQuestModal({ mode: "edit", quest: q })}
-                        onDelete={() => deleteQuest(q.id)}
-                        onDragStart={() => handleDragStart(i)}
-                        onDragOver={(e) => e.preventDefault()}
-                        onDrop={() => handleDrop(i)}
-                      />
-                    ))}
-                  </div>
+                  <motion.div layout className="quest-grid">
+                    <AnimatePresence mode="popLayout">
+                      {data.quests.map((q, i) => (
+                        <QuestCard
+                          key={q.id} quest={q} done={!!data.done[q.id]}
+                          onComplete={completeQuest}
+                          onEdit={() => setQuestModal({ mode: "edit", quest: q })}
+                          onDelete={() => deleteQuest(q.id)}
+                          onDragStart={() => handleDragStart(i)}
+                          onDragOver={(e) => e.preventDefault()}
+                          onDrop={() => handleDrop(i)}
+                        />
+                      ))}
+                    </AnimatePresence>
+                  </motion.div>
                 )}
+              </motion.main>
 
+              {/* Side column */}
+              <motion.div
+                initial={{ opacity: 0, y: 16 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.2, duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+                className="side-column"
+              >
                 <div className="log-panel">
-                  <p className="eyebrow">COMBAT LOG <span style={{ opacity: 0.4, fontSize: "0.7em", fontWeight: "normal", textTransform: "none" }}>· last 10 quests</span></p>
+                  <Brackets />
+                  <p className="eyebrow">Recent activity</p>
                   <div className="log-list">
                     {data.history.length === 0 ? (
-                      <p className="log-empty">No activity recorded yet.</p>
+                      <p className="log-empty">Nothing logged yet. Clear a quest and it shows up here.</p>
                     ) : (
                       data.history.slice(0, 10).map((h, i) => (
-                        <motion.div key={i} initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.02 }} className="log-row">
+                        <motion.div key={i} initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.03 }} className="log-row">
                           <span className={`log-dot ld-${CATEGORIES[h.category]?.color || "blue"}`} />
                           <span className="log-name">{h.name}</span>
                           <span className={`log-stat lt-${CATEGORIES[h.category]?.color || "blue"}`}>
-                            +{h.xp} EXP · {h.stat}
+                            +{h.xp} · {h.stat}
                             {h.tier && <span className="log-tier"> [{h.tier}]</span>}
                           </span>
                           <span className="log-time">{(() => {
@@ -881,17 +972,32 @@ export default function App() {
                     )}
                   </div>
                 </div>
-              </motion.main>
+
+                {data.achievements?.length > 0 && (
+                  <div className="ach-section">
+                    <Brackets />
+                    <p className="eyebrow">Achievements</p>
+                    <div className="ach-grid">
+                      {ACHIEVEMENTS.filter((a) => data.achievements.includes(a.id)).map((a) => (
+                        <div key={a.id} className="ach-badge" title={`${a.label} — ${a.desc}`}>
+                          <span className="ach-icon">{a.icon}</span>
+                        </div>
+                      ))}
+                    </div>
+                    <p className="ach-count">{data.achievements.length} of {ACHIEVEMENTS.length} unlocked</p>
+                  </div>
+                )}
+              </motion.div>
             </div>
 
-            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }}>
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.28 }}>
               <Analytics
-                dailyLog={data.dailyLog} shieldedDays={data.shieldedDays} onWipe={wipeAllData}
+                dailyLog={data.dailyLog} shieldedDays={data.shieldedDays}
                 stats={data.stats} completedToday={completedCount} totalToday={data.quests.length}
               />
             </motion.div>
 
-            <p className="footer-line">The System has chosen you. Do not waste this opportunity.</p>
+            <p className="footer-line">Arise. The gate closes at midnight.</p>
           </>
         )}
       </div>
@@ -1123,32 +1229,127 @@ function ObsidianExport({ data, todayKey, onVaultChange }) {
 
   return (
     <div className="obsidian-section">
-      <p className="eyebrow">OBSIDIAN EXPORT</p>
+      <p className="eyebrow">Export to Obsidian</p>
       <div className="obsidian-vault-row">
         <input
           className="field-input obsidian-vault-input"
-          placeholder="Vault name (optional)"
+          placeholder="Vault name"
           value={vault}
           onChange={(e) => handleVaultChange(e.target.value)}
         />
       </div>
       <p className="obsidian-hint">
         {vault.trim()
-          ? `→ Opens directly in "${vault.trim()}" vault`
-          : "→ Leave blank to download as .md file"}
+          ? `Opens straight into your "${vault.trim()}" vault.`
+          : "Leave this blank to download a .md file instead."}
       </p>
       <div className="obsidian-btns">
-        <button className="btn-obsidian" onClick={() => doExport("daily")} title="Export today's quest log">
-          <span>📓</span> Daily Note
+        <button className="btn-obsidian" onClick={() => doExport("daily")} title="Today's quest log">
+          Daily note
         </button>
-        <button className="btn-obsidian" onClick={() => doExport("profile")} title="Export hunter profile & achievements">
-          <span>⚔️</span> Hunter Profile
+        <button className="btn-obsidian" onClick={() => doExport("profile")} title="Profile and achievements">
+          Profile
         </button>
-        <button className="btn-obsidian" onClick={() => doExport("archive")} title="Export all quests & history">
-          <span>📜</span> Quest Archive
+        <button className="btn-obsidian" onClick={() => doExport("archive")} title="Every quest and its history">
+          Archive
         </button>
       </div>
     </div>
+  );
+}
+
+/* ─── SettingsDrawer ──────────────────────────────────────────────────────────
+   Reminders, export and the danger zone used to live in the character panel,
+   which made the sidebar a junk drawer. They're settings — they belong in one. */
+function SettingsDrawer({ data, setData, todayKey, onWipe, onClose }) {
+  const [confirmWipe, setConfirmWipe] = useState(false);
+
+  useEffect(() => {
+    const onKey = (e) => e.key === "Escape" && onClose();
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
+  function toggleNotif(checked) {
+    if (checked && "Notification" in window && Notification.permission !== "granted") {
+      Notification.requestPermission().then((perm) => {
+        if (perm === "granted") setData((p) => ({ ...p, notifEnabled: true }));
+      });
+    } else {
+      setData((p) => ({ ...p, notifEnabled: checked }));
+    }
+  }
+
+  return (
+    <>
+      <motion.div
+        initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+        className="drawer-backdrop" onClick={onClose}
+      />
+      <motion.aside
+        initial={{ x: "100%" }} animate={{ x: 0 }} exit={{ x: "100%" }}
+        transition={{ type: "spring", stiffness: 300, damping: 34 }}
+        className="drawer-body"
+        role="dialog" aria-label="Settings"
+      >
+        <div className="drawer-head">
+          <div>
+            <p className="eyebrow">Configuration</p>
+            <h2 className="drawer-title">Settings</h2>
+          </div>
+          <button className="drawer-close" onClick={onClose} aria-label="Close settings"><X size={20} /></button>
+        </div>
+
+        <div className="drawer-section">
+          <div className="notif-settings">
+            <p className="eyebrow">Daily reminder</p>
+            <div className="notif-row">
+              <label className="notif-toggle-label">
+                <input type="checkbox" checked={!!data.notifEnabled} onChange={(e) => toggleNotif(e.target.checked)} />
+                Remind me
+              </label>
+              <input
+                type="time"
+                className="notif-time-input"
+                value={data.notifTime || "08:00"}
+                disabled={!data.notifEnabled}
+                onChange={(e) => setData((p) => ({ ...p, notifTime: e.target.value }))}
+              />
+            </div>
+            <p className="notif-note">
+              Fires at this time when quests are still open. The app has to be running for it to reach you.
+            </p>
+          </div>
+        </div>
+
+        <div className="drawer-section">
+          <ObsidianExport
+            data={data}
+            todayKey={todayKey}
+            onVaultChange={(v) => setData((p) => ({ ...p, obsidianVault: v }))}
+          />
+        </div>
+
+        <div className="drawer-section">
+          <p className="eyebrow">Danger zone</p>
+          <div className="wipe-row">
+            {confirmWipe ? (
+              <>
+                <span className="wipe-confirm-text">
+                  This erases every level, quest, stat and log entry. It cannot be undone.
+                </span>
+                <button className="btn-wipe-confirm" onClick={() => { onWipe(); setConfirmWipe(false); onClose(); }}>
+                  Erase everything
+                </button>
+                <button className="btn-wipe-cancel" onClick={() => setConfirmWipe(false)}>Keep it</button>
+              </>
+            ) : (
+              <button className="btn-wipe" onClick={() => setConfirmWipe(true)}>Wipe all data</button>
+            )}
+          </div>
+        </div>
+      </motion.aside>
+    </>
   );
 }
 
@@ -1161,23 +1362,24 @@ function SetupModal({ onComplete }) {
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="setup-overlay">
       <motion.div initial={{ opacity: 0, y: 40, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ type: "spring", stiffness: 220, damping: 22, delay: 0.15 }} className="setup-box">
-        <p className="setup-eyebrow">SYSTEM INITIALIZATION</p>
-        <h1 className="setup-title">HUNTER'S JOURNAL</h1>
-        <p className="setup-sub">The System has detected a new player.<br />Register your profile to begin.</p>
+        <Brackets />
+        <p className="setup-eyebrow">System initialization</p>
+        <h1 className="setup-title">Hunter's Journal</h1>
+        <p className="setup-sub">A new hunter has been detected.<br />Register your profile to open the gate.</p>
         <div className="setup-divider" />
         <form onSubmit={handleStart} className="setup-form">
           <div className="field">
-            <label className="field-label">Hunter Name</label>
-            <input className="field-input setup-input" placeholder="Enter your name" value={name} onChange={(e) => setName(e.target.value)} autoFocus required />
+            <label className="field-label">Hunter name</label>
+            <input className="field-input setup-input" placeholder="What should the System call you?" value={name} onChange={(e) => setName(e.target.value)} autoFocus required />
           </div>
           <div className="field">
-            <label className="field-label">Timezone <span className="optional">— quests reset at 00:00 in this timezone</span></label>
+            <label className="field-label">Timezone <span className="optional">— quests reset at midnight here</span></label>
             <select className="field-input setup-select" value={tz} onChange={(e) => setTz(e.target.value)}>
               {TIMEZONES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
             </select>
-            <p className="setup-tz-hint">Auto-detected: {detectedTz}</p>
+            <p className="setup-tz-hint">Detected on this device: {detectedTz}</p>
           </div>
-          <button type="submit" className="btn-setup-start">BEGIN JOURNEY</button>
+          <button type="submit" className="btn-setup-start">Enter the gate</button>
         </form>
       </motion.div>
     </motion.div>
@@ -1236,33 +1438,36 @@ function buildWeek(dailyLog) {
   });
 }
 
+/* Heatmap ramps through the monarch violet and tops out at gold, so the
+   best days read as reward rather than just "more blue". */
 function cellColor(q, shielded) {
-  if (shielded) return "rgba(99,102,241,0.45)";
-  if (q === 0) return "rgba(255,255,255,0.04)";
-  if (q === 1) return "rgba(59,130,246,0.25)";
-  if (q === 2) return "rgba(59,130,246,0.48)";
-  if (q === 3) return "rgba(59,130,246,0.68)";
-  return "rgba(59,130,246,0.88)";
+  if (shielded) return "rgba(232,179,60,0.34)";
+  if (q === 0) return "rgba(140,116,214,0.07)";
+  if (q === 1) return "rgba(109,74,255,0.3)";
+  if (q === 2) return "rgba(109,74,255,0.55)";
+  if (q === 3) return "rgba(140,105,255,0.8)";
+  return "rgba(182,149,255,0.98)";
 }
 function cellGlow(q, shielded) {
-  if (shielded) return "0 0 7px rgba(99,102,241,0.4)";
-  if (q >= 4) return "0 0 8px rgba(59,130,246,0.55)";
-  if (q >= 2) return "0 0 5px rgba(59,130,246,0.25)";
+  if (shielded) return "0 0 7px rgba(232,179,60,0.45)";
+  if (q >= 4) return "0 0 9px rgba(140,105,255,0.7)";
+  if (q >= 2) return "0 0 5px rgba(109,74,255,0.35)";
   return "none";
 }
 
-const CAT_COLORS_HEX = { COMBAT: "#ef4444", KNOWLEDGE: "#3b82f6", DISCIPLINE: "#a855f7", VITALITY: "#22c55e", CREATION: "#f59e0b" };
+const CAT_COLORS_HEX = { COMBAT: "#ff5a47", KNOWLEDGE: "#4ca8ff", DISCIPLINE: "#8b6bff", VITALITY: "#3fd9a0", CREATION: "#e8b33c" };
 
 // ─── StatRadarChart ───────────────────────────────────────────────────────────
 const RADAR_AXES = [
-  { key: "STR", color: "#ef4444" },
-  { key: "MND", color: "#3b82f6" },
-  { key: "DIS", color: "#a855f7" },
-  { key: "VIT", color: "#22c55e" },
-  { key: "CRE", color: "#f59e0b" },
+  { key: "STR", color: "#ff5a47" },
+  { key: "MND", color: "#4ca8ff" },
+  { key: "DIS", color: "#8b6bff" },
+  { key: "VIT", color: "#3fd9a0" },
+  { key: "CRE", color: "#e8b33c" },
 ];
 function StatRadarChart({ stats }) {
-  const cx = 110, cy = 110, r = 72, n = RADAR_AXES.length;
+  // r is kept small enough that the outer value labels stay inside the box.
+  const cx = 110, cy = 110, r = 62, n = RADAR_AXES.length;
   const maxVal = Math.max(1, ...RADAR_AXES.map((a) => stats[a.key] || 0));
 
   function pt(i, ratio) {
@@ -1281,31 +1486,31 @@ function StatRadarChart({ stats }) {
     <svg viewBox="0 0 220 220" className="radar-svg">
       {[0.25, 0.5, 0.75, 1].map((ratio, gi) => (
         <polygon key={gi} points={poly(ratio)} fill="none"
-          stroke={gi === 3 ? "rgba(59,130,246,0.22)" : "rgba(59,130,246,0.09)"} strokeWidth="1" />
+          stroke={gi === 3 ? "rgba(140,116,214,0.3)" : "rgba(140,116,214,0.11)"} strokeWidth="1" />
       ))}
       {RADAR_AXES.map((_, i) => {
         const p = pt(i, 1);
-        return <line key={i} x1={cx} y1={cy} x2={p.x} y2={p.y} stroke="rgba(59,130,246,0.15)" strokeWidth="1" />;
+        return <line key={i} x1={cx} y1={cy} x2={p.x} y2={p.y} stroke="rgba(140,116,214,0.18)" strokeWidth="1" />;
       })}
-      <polygon points={dataPoly} fill="rgba(59,130,246,0.13)" stroke="#3b82f6" strokeWidth="1.5" strokeLinejoin="round" />
+      <polygon points={dataPoly} fill="rgba(109,74,255,0.18)" stroke="#8b6bff" strokeWidth="1.6" strokeLinejoin="round" />
       {RADAR_AXES.map((a, i) => {
         const p = dataPoints[i];
         return <circle key={i} cx={p.x} cy={p.y} r="3.5" fill={a.color} style={{ filter: `drop-shadow(0 0 4px ${a.color})` }} />;
       })}
       {RADAR_AXES.map((a, i) => {
-        const lp = pt(i, 1.28);
+        const lp = pt(i, 1.32);
         return (
           <text key={i} x={lp.x} y={lp.y} textAnchor="middle" dominantBaseline="middle"
-            fill={a.color} fontSize="9.5" fontFamily="Orbitron, monospace" fontWeight="700">
+            fill={a.color} fontSize="10" fontFamily="'Chakra Petch', sans-serif" fontWeight="700" letterSpacing="1">
             {a.key}
           </text>
         );
       })}
       {RADAR_AXES.map((a, i) => {
-        const vp = pt(i, 1.55);
+        const vp = pt(i, 1.64);
         return (
           <text key={`v-${i}`} x={vp.x} y={vp.y} textAnchor="middle" dominantBaseline="middle"
-            fill="rgba(148,163,184,0.7)" fontSize="7.5" fontFamily="Inter, sans-serif">
+            fill="rgba(164,156,190,0.85)" fontSize="8.5" fontFamily="'Chakra Petch', sans-serif">
             {stats[a.key] || 0}
           </text>
         );
@@ -1315,9 +1520,8 @@ function StatRadarChart({ stats }) {
 }
 
 // ─── Analytics ────────────────────────────────────────────────────────────────
-function Analytics({ dailyLog, shieldedDays, onWipe, stats, completedToday, totalToday }) {
-  const [tooltip, setTooltip]         = useState(null);
-  const [confirmWipe, setConfirmWipe] = useState(false);
+function Analytics({ dailyLog, shieldedDays, stats, completedToday, totalToday }) {
+  const [tooltip, setTooltip] = useState(null);
 
   const streak   = useMemo(() => calcStreak(dailyLog, shieldedDays),         [dailyLog, shieldedDays]);
   const heatmap  = useMemo(() => buildHeatmap(dailyLog, shieldedDays),        [dailyLog, shieldedDays]);
@@ -1340,15 +1544,16 @@ function Analytics({ dailyLog, shieldedDays, onWipe, stats, completedToday, tota
 
   return (
     <div className="analytics-panel">
-      <p className="eyebrow">ANALYTICS</p>
+      <Brackets />
+      <p className="eyebrow">Record</p>
       <div className="analytics-pills">
         {[
-          { val: streak,             label: "Day Streak"   },
-          { val: totals.totalQuests, label: "Total Quests" },
-          { val: totals.totalXp,     label: "Total XP"     },
-          { val: totals.bestDay,     label: "Best Day"     },
-          { val: totals.totalDays,   label: "Active Days"  },
-          { val: totalToday > 0 ? `${Math.round((completedToday / totalToday) * 100)}%` : "—", label: "Today %" },
+          { val: streak,             label: "Day streak"   },
+          { val: totals.totalQuests, label: "Quests cleared" },
+          { val: totals.totalXp,     label: "EXP earned"   },
+          { val: totals.bestDay,     label: "Best day"     },
+          { val: totals.totalDays,   label: "Active days"  },
+          { val: totalToday > 0 ? `${Math.round((completedToday / totalToday) * 100)}%` : "—", label: "Today" },
         ].map((p) => (
           <div key={p.label} className="a-pill">
             <span className="a-pill-val">{p.val}</span>
@@ -1358,7 +1563,7 @@ function Analytics({ dailyLog, shieldedDays, onWipe, stats, completedToday, tota
       </div>
 
       <div className="heatmap-section">
-        <p className="analytics-sub-label">ACTIVITY — LAST 14 WEEKS <span className="heatmap-legend-note">🛡️ = shield used</span></p>
+        <p className="analytics-sub-label">Last 14 weeks <span className="heatmap-legend-note">🛡️ marks a day a shield covered</span></p>
         <div className="heatmap-grid">
           {heatmap.map((week, wi) => (
             <div key={wi} className="heatmap-week">
@@ -1379,7 +1584,7 @@ function Analytics({ dailyLog, shieldedDays, onWipe, stats, completedToday, tota
           }}>
             <span className="ht-date">{tooltip.day.label}</span>
             <span className="ht-val">
-              {tooltip.day.shielded ? "🛡️ Shield used" : tooltip.day.quests === 0 ? "No activity" : `${tooltip.day.quests} quest${tooltip.day.quests !== 1 ? "s" : ""} · ${tooltip.day.xp} XP`}
+              {tooltip.day.shielded ? "Shield spent" : tooltip.day.quests === 0 ? "Nothing cleared" : `${tooltip.day.quests} quest${tooltip.day.quests !== 1 ? "s" : ""} · ${tooltip.day.xp} EXP`}
             </span>
           </div>
         )}
@@ -1392,11 +1597,11 @@ function Analytics({ dailyLog, shieldedDays, onWipe, stats, completedToday, tota
 
       <div className="analytics-bottom">
         <div className="radar-section">
-          <p className="analytics-sub-label">STAT PROFILE</p>
+          <p className="analytics-sub-label">Attribute spread</p>
           <StatRadarChart stats={stats} />
         </div>
         <div className="week-chart">
-          <p className="analytics-sub-label">THIS WEEK</p>
+          <p className="analytics-sub-label">This week</p>
           <div className="week-bars">
             {weekDays.map((day, i) => (
               <div key={i} className="week-bar-col">
@@ -1426,8 +1631,8 @@ function Analytics({ dailyLog, shieldedDays, onWipe, stats, completedToday, tota
         </div>
 
         <div className="cat-breakdown">
-          <p className="analytics-sub-label">CATEGORY BREAKDOWN</p>
-          {totals.totalXp === 0 ? <p className="log-empty">No data yet.</p> : (
+          <p className="analytics-sub-label">Where your EXP went</p>
+          {totals.totalXp === 0 ? <p className="log-empty">Clear a quest and this fills in.</p> : (
             <div className="cat-bars">
               {CAT_ORDER.map((cat) => {
                 const xp = catTotals[cat] || 0; const pct = Math.round((xp / maxCatXp) * 100); const c = CATEGORIES[cat];
@@ -1444,17 +1649,6 @@ function Analytics({ dailyLog, shieldedDays, onWipe, stats, completedToday, tota
         </div>
       </div>
 
-      <div className="wipe-row">
-        {confirmWipe ? (
-          <>
-            <span className="wipe-confirm-text">This will erase all XP, quests, and history. Are you sure?</span>
-            <button className="btn-wipe-confirm" onClick={() => { onWipe(); setConfirmWipe(false); }}>Yes, wipe it</button>
-            <button className="btn-wipe-cancel" onClick={() => setConfirmWipe(false)}>Cancel</button>
-          </>
-        ) : (
-          <button className="btn-wipe" onClick={() => setConfirmWipe(true)}>Wipe all data</button>
-        )}
-      </div>
     </div>
   );
 }
@@ -1470,7 +1664,8 @@ function formatStat(value) {
   if (value >= 10000)  return `${(value / 1000).toFixed(1)}k`;
   return String(value);
 }
-const STAT_VAL_SIZE = { 1: "1.25rem", 2: "1.25rem", 3: "1.05rem", 4: "0.8rem", 5: "0.68rem" };
+/* Anton is condensed enough to hold four digits at full size. */
+const STAT_VAL_SIZE = { 1: "1.7rem", 2: "1.7rem", 3: "1.55rem", 4: "1.3rem", 5: "1.05rem" };
 function StatCard({ statKey, value }) {
   const m = STAT_META[statKey] || { color: "blue", hint: statKey };
   const fillPct = Math.min(100, value === 0 ? 0 : (value / (value + 100)) * 100 + 5);
@@ -1488,7 +1683,6 @@ function StatCard({ statKey, value }) {
 // ─── QuestCard ────────────────────────────────────────────────────────────────
 function QuestCard({ quest, done, onComplete, onEdit, onDelete, onDragStart, onDragOver, onDrop }) {
   const cat      = CATEGORIES[quest.category] || CATEGORIES.DISCIPLINE;
-  const Icon     = CAT_ICONS[quest.category] || Shield;
   const tierKey  = quest.tier || "E";
   const tier     = TIERS[tierKey];
   const isWeekly = quest.repeat === "weekly";
@@ -1502,7 +1696,7 @@ function QuestCard({ quest, done, onComplete, onEdit, onDelete, onDragStart, onD
       <div className="qcard-top">
         <div className="qcard-left">
           <div className="drag-handle"><GripVertical size={13} /></div>
-          <div className={`qicon qi-${cat.color}`}><Icon size={17} /></div>
+          <div className={`qicon qi-${cat.color}`}><CategoryGlyph category={quest.category} size={18} /></div>
         </div>
         <div className="qcard-badges">
           <span className={`cat-badge cb-${cat.color}`}>{cat.label}</span>
@@ -1520,8 +1714,12 @@ function QuestCard({ quest, done, onComplete, onEdit, onDelete, onDragStart, onD
           <span className="xp-tag">+{tier.xp} EXP</span>
           <span className={`stat-tag st-${cat.color}`}>{cat.stat}</span>
         </div>
-        <button className={done ? "btn-done" : `btn-complete bc-${cat.color}`} disabled={done} onClick={() => onComplete(quest)}>
-          {done ? "Completed" : <><span>Complete Quest</span><ChevronRight size={14} /></>}
+        <button
+          className={done ? "btn-done" : `btn-complete bc-${cat.color}`}
+          disabled={done}
+          onClick={(e) => onComplete(quest, e)}
+        >
+          {done ? "Cleared" : <><span>Clear quest</span><ChevronRight size={14} /></>}
         </button>
       </div>
     </motion.div>
@@ -1547,17 +1745,20 @@ function QuestModal({ mode, initialQuest, userLevel, onSave, onClose }) {
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="modal-backdrop" onClick={(e) => e.target === e.currentTarget && onClose()}>
       <motion.div initial={{ opacity: 0, scale: 0.92, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.9, y: 16 }} transition={{ type: "spring", stiffness: 260, damping: 22 }} className="modal-box">
         <div className="modal-head">
-          <div><p className="eyebrow">SYSTEM</p><h3 className="modal-title">{mode === "edit" ? "Edit Quest" : "Register New Quest"}</h3></div>
+          <div>
+            <p className="eyebrow">{mode === "edit" ? "Amend" : "Register"}</p>
+            <h3 className="modal-title">{mode === "edit" ? "Edit quest" : "New quest"}</h3>
+          </div>
           <button className="modal-close" onClick={onClose}><X size={20} /></button>
         </div>
         <form onSubmit={handleSubmit} className="modal-form">
           <div className="field">
-            <label className="field-label">Quest Name</label>
-            <input className="field-input" placeholder="e.g. Morning Run" value={name} onChange={(e) => setName(e.target.value)} autoFocus required />
+            <label className="field-label">Name</label>
+            <input className="field-input" placeholder="Morning run" value={name} onChange={(e) => setName(e.target.value)} autoFocus required />
           </div>
           <div className="field">
-            <label className="field-label">Description <span className="optional">(optional)</span></label>
-            <input className="field-input" placeholder="e.g. Run at least 2km outdoors" value={desc} onChange={(e) => setDesc(e.target.value)} />
+            <label className="field-label">Description <span className="optional">optional</span></label>
+            <input className="field-input" placeholder="Five kilometres before anything else" value={desc} onChange={(e) => setDesc(e.target.value)} />
           </div>
           <div className="field">
             <label className="field-label">Category</label>
@@ -1571,7 +1772,7 @@ function QuestModal({ mode, initialQuest, userLevel, onSave, onClose }) {
             </div>
           </div>
           <div className="field">
-            <label className="field-label">Difficulty Tier</label>
+            <label className="field-label">Difficulty <span className="optional">higher tiers unlock as you level</span></label>
             <div className="tier-grid">
               {TIER_ORDER.map((t) => {
                 const td      = TIERS[t];
@@ -1595,9 +1796,9 @@ function QuestModal({ mode, initialQuest, userLevel, onSave, onClose }) {
             <label className="field-label">Repeat</label>
             <div className="repeat-toggle repeat-toggle-3">
               {[
-                { v: "daily",  name: "Daily",    desc: "Resets every midnight"  },
-                { v: "weekly", name: "⚔ Weekly", desc: "Resets every Monday"   },
-                { v: "once",   name: "Once",     desc: "Removed on completion" },
+                { v: "daily",  name: "Daily",  desc: "Resets at midnight"      },
+                { v: "weekly", name: "Weekly", desc: "Resets every Monday"     },
+                { v: "once",   name: "Once",   desc: "Disappears once cleared" },
               ].map((r) => (
                 <button type="button" key={r.v} className={`repeat-opt ${repeat === r.v ? "repeat-selected" : ""}`} onClick={() => setRepeat(r.v)}>
                   <span className="repeat-opt-name">{r.name}</span>
@@ -1606,7 +1807,7 @@ function QuestModal({ mode, initialQuest, userLevel, onSave, onClose }) {
               ))}
             </div>
           </div>
-          <button type="submit" className="btn-submit">{mode === "edit" ? "Save Changes" : "Register Quest"}</button>
+          <button type="submit" className="btn-submit">{mode === "edit" ? "Save changes" : "Register quest"}</button>
         </form>
       </motion.div>
     </motion.div>
@@ -1619,27 +1820,59 @@ function WeeklyBossCard({ boss, defeated, weeklyQuests, onDefeat }) {
   const unlocked = weeklyQuests >= BOSS_THRESHOLD;
   const progress = Math.min(100, Math.round((weeklyQuests / BOSS_THRESHOLD) * 100));
   return (
-    <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className={`weekly-boss-card ${defeated ? "boss-defeated" : ""}`}>
-      <div className="boss-header">
-        <div className="boss-header-left">
-          <span className="boss-eyebrow">WEEKLY BOSS</span>
-          <p className="boss-name">{boss.name}</p>
-        </div>
-        {defeated
-          ? <span className="boss-cleared-stamp"><Check size={11} /> DEFEATED</span>
-          : <span className="boss-xp-badge">+500 EXP</span>
-        }
+    <motion.div
+      initial={{ opacity: 0, y: -12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ type: "spring", stiffness: 200, damping: 24 }}
+      className={`weekly-boss-card ${defeated ? "boss-defeated" : ""}`}
+    >
+      <Brackets />
+      <div className="boss-stage">
+        <BossArt name={boss.name} defeated={defeated} />
       </div>
-      <p className="boss-desc">{boss.desc}</p>
-      {!defeated && !unlocked && (
-        <div className="boss-lock-row">
-          <div className="boss-lock-track"><div className="boss-lock-fill" style={{ width: `${progress}%` }} /></div>
-          <span className="boss-lock-label">{weeklyQuests} / {BOSS_THRESHOLD} quests to unlock</span>
+
+      <div className="boss-body">
+        <div className="boss-header">
+          <div className="boss-header-left">
+            <span className="boss-eyebrow">This week's boss</span>
+            <p className="boss-name">{boss.name}</p>
+          </div>
+          {defeated
+            ? <span className="boss-cleared-stamp"><Check size={11} /> Defeated</span>
+            : <span className="boss-xp-badge">+500 EXP</span>
+          }
         </div>
-      )}
-      <button className={defeated ? "btn-done boss-btn" : "btn-complete bc-red boss-btn"} disabled={defeated || !unlocked} onClick={onDefeat}>
-        {defeated ? "Defeated" : !unlocked ? <><Lock size={13} /><span>Locked</span></> : <><span>Challenge Boss</span><ChevronRight size={14} /></>}
-      </button>
+
+        <p className="boss-desc">{boss.desc}</p>
+
+        {!defeated && !unlocked && (
+          <div className="boss-lock-row">
+            <div className="boss-lock-track">
+              <motion.div
+                className="boss-lock-fill"
+                initial={{ width: 0 }}
+                animate={{ width: `${progress}%` }}
+                transition={{ duration: 0.9, ease: "easeOut" }}
+              />
+            </div>
+            <span className="boss-lock-label">
+              {weeklyQuests} of {BOSS_THRESHOLD} quests cleared this week
+            </span>
+          </div>
+        )}
+
+        <button
+          className={defeated ? "btn-done boss-btn" : "btn-complete bc-red boss-btn"}
+          disabled={defeated || !unlocked}
+          onClick={onDefeat}
+        >
+          {defeated
+            ? "Defeated"
+            : !unlocked
+              ? <><Lock size={13} /><span>Sealed</span></>
+              : <><span>Challenge</span><ChevronRight size={14} /></>}
+        </button>
+      </div>
     </motion.div>
   );
 }
@@ -1664,10 +1897,27 @@ function LoadingScreen() {
     <div className="app-root">
       <div className="bg-layer" />
       <div className="loading-screen">
-        <motion.p animate={{ opacity: [0.3, 1, 0.3] }} transition={{ duration: 1.8, repeat: Infinity }} className="loading-label">SYSTEM INTERFACE</motion.p>
+        <motion.div
+          animate={{ scale: [1, 1.08, 1], opacity: [0.7, 1, 0.7] }}
+          transition={{ duration: 2.4, repeat: Infinity, ease: "easeInOut" }}
+        >
+          <GateMark size={56} />
+        </motion.div>
+        <motion.p
+          animate={{ opacity: [0.35, 1, 0.35] }}
+          transition={{ duration: 2, repeat: Infinity }}
+          className="loading-label"
+        >
+          Opening the gate
+        </motion.p>
         <div className="loading-dots">
-          {[0,1,2].map((i) => (
-            <motion.div key={i} className="loading-dot" animate={{ opacity: [0.15,1,0.15], scale: [0.8,1.2,0.8] }} transition={{ duration: 1, repeat: Infinity, delay: i * 0.22 }} />
+          {[0, 1, 2].map((i) => (
+            <motion.div
+              key={i}
+              className="loading-dot"
+              animate={{ opacity: [0.15, 1, 0.15], scaleY: [0.6, 1.4, 0.6] }}
+              transition={{ duration: 1, repeat: Infinity, delay: i * 0.2 }}
+            />
           ))}
         </div>
       </div>
@@ -1676,17 +1926,100 @@ function LoadingScreen() {
 }
 
 // ─── LevelUpOverlay ───────────────────────────────────────────────────────────
+/* The reward moment. Everything else on the page is restrained so this can
+   be loud: circle spins up, runes fall, rings blow outward, type slams in. */
 function LevelUpOverlay({ level }) {
+  const slam = { type: "spring", stiffness: 420, damping: 15 };
+
   return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="levelup-overlay">
-      <motion.div initial={{ scale: 0.4, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 1.15, opacity: 0 }} transition={{ type: "spring", stiffness: 200, damping: 14 }} className="levelup-box">
-        <motion.div animate={{ scale: [1,1.12,1], opacity: [0.4,0.9,0.4] }} transition={{ duration: 1.8, repeat: Infinity }} className="levelup-ring" />
-        <motion.div animate={{ scale: [1,1.06,1], opacity: [0.15,0.35,0.15] }} transition={{ duration: 1.2, repeat: Infinity, delay: 0.3 }} className="levelup-ring-2" />
-        <p className="lu-sys">SYSTEM ALERT</p>
-        <p className="lu-heading">LEVEL UP</p>
-        <p className="lu-num">LV.{level}</p>
-        <p className="lu-rank">{getRankTitle(level)}</p>
-        <motion.div initial={{ scaleX: 0 }} animate={{ scaleX: 1 }} transition={{ delay: 0.3, duration: 0.6 }} className="lu-line" />
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.25 }}
+      className="levelup-overlay"
+    >
+      {/* Impact flash */}
+      <motion.div
+        style={{ position: "absolute", inset: 0, background: "var(--arise)", pointerEvents: "none" }}
+        initial={{ opacity: 0.85 }}
+        animate={{ opacity: 0 }}
+        transition={{ duration: 0.5, ease: "easeOut" }}
+      />
+
+      <GlyphRain count={20} />
+
+      <motion.div
+        initial={{ scale: 0.2, opacity: 0, rotate: -40 }}
+        animate={{ scale: 1, opacity: 1, rotate: 0 }}
+        transition={{ type: "spring", stiffness: 90, damping: 16 }}
+        style={{ position: "absolute", inset: 0, display: "grid", placeItems: "center", pointerEvents: "none" }}
+      >
+        <SummonCircle size={Math.min(620, typeof window !== "undefined" ? window.innerWidth * 0.95 : 620)} spin={1.6} />
+      </motion.div>
+
+      <ShockRings count={3} color="var(--ichor)" />
+
+      <motion.div
+        initial={{ scale: 0.7, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        exit={{ scale: 1.2, opacity: 0 }}
+        transition={{ type: "spring", stiffness: 200, damping: 18 }}
+        className="levelup-box"
+      >
+        <motion.div
+          className="levelup-ring"
+          animate={{ scale: [1, 1.14, 1], opacity: [0.35, 0.85, 0.35] }}
+          transition={{ duration: 1.9, repeat: Infinity, ease: "easeInOut" }}
+        />
+        <motion.div
+          className="levelup-ring-2"
+          animate={{ scale: [1, 1.07, 1], opacity: [0.12, 0.32, 0.12] }}
+          transition={{ duration: 1.3, repeat: Infinity, delay: 0.3, ease: "easeInOut" }}
+        />
+
+        <motion.p
+          className="lu-sys"
+          initial={{ opacity: 0, letterSpacing: "1.4em" }}
+          animate={{ opacity: 1, letterSpacing: "0.5em" }}
+          transition={{ delay: 0.15, duration: 0.5 }}
+        >
+          System alert
+        </motion.p>
+
+        <motion.p
+          className="lu-heading"
+          initial={{ scale: 1.85, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={{ ...slam, delay: 0.28 }}
+        >
+          Level up
+        </motion.p>
+
+        <motion.p
+          className="lu-num"
+          initial={{ scale: 2.1, opacity: 0, y: 16 }}
+          animate={{ scale: 1, opacity: 1, y: 0 }}
+          transition={{ ...slam, delay: 0.5 }}
+        >
+          LV.{level}
+        </motion.p>
+
+        <motion.p
+          className="lu-rank"
+          initial={{ opacity: 0, y: 14 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.78, duration: 0.45 }}
+        >
+          {getRankTitle(level)}
+        </motion.p>
+
+        <motion.div
+          className="lu-line"
+          initial={{ scaleX: 0 }}
+          animate={{ scaleX: 1 }}
+          transition={{ delay: 0.85, duration: 0.6, ease: "easeOut" }}
+        />
       </motion.div>
     </motion.div>
   );
