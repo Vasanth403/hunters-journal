@@ -23,7 +23,11 @@ export default defineConfig([
       },
     },
     rules: {
-      'no-unused-vars': ['error', { varsIgnorePattern: '^[A-Z_]' }],
+      // Capitalised names cover JSX components. `motion` is added because
+      // no-unused-vars can't see through JSX *member* expressions
+      // (`<motion.div>`) without eslint-plugin-react, so it reports every
+      // framer-motion import as unused.
+      'no-unused-vars': ['error', { varsIgnorePattern: '^[A-Z_]|^motion$' }],
     },
   },
 ])
